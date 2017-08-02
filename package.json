@@ -1,0 +1,19 @@
+{
+  "name": "challonge-scraper",
+  "version": "1.0.0",
+  "description": "command line program to scrape, manage and query tournament data from multiple challonge accounts",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "sundowns",
+  "license": "ISC",
+  "bin": {
+    "scraper": "index.js"
+  },
+  "dependencies": {
+    "chalk": "^2.0.1",
+    "commander": "^2.11.0",
+    "jsonfile": "^3.0.1"
+  }
+}
