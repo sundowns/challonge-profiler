@@ -11,7 +11,7 @@ module.exports = {
         log(chalk.blue(text));
     },
     Divider : function() {
-        log(chalk.gray("============="));
+        log(chalk.gray("===================================================="));
     },
     NewLine : function() {
         log("");
