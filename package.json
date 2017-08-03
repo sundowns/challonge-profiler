@@ -9,11 +9,14 @@
   "author": "sundowns",
   "license": "ISC",
   "bin": {
-    "scraper": "index.js"
+    "scraper": "./index.js"
   },
   "dependencies": {
     "chalk": "^2.0.1",
+    "challonge": "^2.1.0",
     "commander": "^2.11.0",
-    "jsonfile": "^3.0.1"
+    "file-exists": "^4.0.0",
+    "jsonfile": "^3.0.1",
+    "moment": "^2.18.1"
   }
 }
