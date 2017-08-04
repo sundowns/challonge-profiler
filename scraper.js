@@ -11,11 +11,11 @@ const apiKeys = {
     perthsmash: "7OJcveK8mQpw4uFaPo6LVsXR5uGnYKxZmbZi7zNN"
 };
 const meleeId = "394";
-const currentSeason = 1;
 const currentSeasonStartDate = "2016-09-08"; //YYYY-MM-DD
-const matchesFilePath = __dirname + path.normalize('/data/matches-season' + currentSeason + '.json');
+const matchesFilePath = __dirname + path.normalize('/data/matches-season1.json');
 const tournamentsFilePath = __dirname + path.normalize('/data/tournaments.json');
 const configFilePath = __dirname + path.normalize('/data/config.json');
+
 var client = {};
 var matches = {};
 var tournaments = {};
@@ -61,17 +61,12 @@ let processTournamentData = function(data) {
     }
 }
 
-/* Private init functions */
-let loadConfig = function(){
-    config = jsonfile.readFileSync(configFilePath);
-}
-
 module.exports = {
-    Init: function() {
+    Init: function(_config) {
         matches = jsonfile.readFileSync(matchesFilePath);
         tournaments = jsonfile.readFileSync(tournamentsFilePath);
-        loadConfig();
         client = challonge.createClient({ apiKey : apiKeys[config.currentApiUser] });
+        config = _config;
 
         if (!tournaments.scraped) tournaments.scraped = [];
         if (!tournaments.lastrun) {
@@ -115,7 +110,6 @@ module.exports = {
         }
     },
     ListRegisteredApiUsers: function() {
-        loadConfig();
         out.Log(chalk.blue("User") + chalk.white("  |  ") + chalk.yellow("API Key"))
         for(var user in apiKeys) {
             if (apiKeys.hasOwnProperty(user)) {
@@ -128,7 +122,6 @@ module.exports = {
         }
     },
     DisplayActiveUser: function() {
-        loadConfig();
         out.Results(config.currentApiUser);
     }
 }

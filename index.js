@@ -2,10 +2,17 @@
 'use strict';
 const program = require('commander');
 const out = require('./output');
-const chalk = require("chalk");
+const chalk = require('chalk');
 const scraper = require('./scraper');
 const moment = require('moment');
+const manager = require('./manager');
+const jsonfile = require('jsonfile');
+const path = require('path')
+const configFilePath = __dirname + path.normalize('/data/config.json');
+var config = jsonfile.readFileSync(configFilePath);
 
+scraper.Init(config);
+manager.Init(config);
 /* Command Handlers */
 let fetchTournamentsFunction = function() {
     LoadFiles();
@@ -75,6 +82,14 @@ let changeUser = function(id) {
     }
 }
 
+let currentSeason = function() {
+    manager.DisplayCurrentSeason();
+}
+
+let listSeasons = function() {
+    manager.ListSeasons();
+}
+
 program.version('0.0.1');
 
 program.command('tournaments')
@@ -100,5 +115,13 @@ program.command('switch [id]')
 program.command('users')
     .description('List all registered API users')
     .action(listUsers);
+
+program.command('season')
+    .description("Display current season")
+    .action(currentSeason);
+
+program.command('seasons')
+    .description("List all seasons")
+    .action(listSeasons);
 
 program.parse(process.argv);
