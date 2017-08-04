@@ -90,6 +90,10 @@ let listSeasons = function() {
     manager.ListSeasons();
 }
 
+let changeSeason = function(season) {
+    manager.ChangeSeason(season);
+}
+
 program.version('0.0.1');
 
 program.command('tournaments')
@@ -123,5 +127,9 @@ program.command('season')
 program.command('seasons')
     .description("List all seasons")
     .action(listSeasons);
+
+program.command('changeseason [season]')
+    .description("Change current seasons")
+    .action(changeSeason);
 
 program.parse(process.argv);

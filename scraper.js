@@ -78,7 +78,7 @@ module.exports = {
         if (!tournaments.records) tournaments.records = [];
     },
     ListExistingTournaments : function() {
-        return tournaments.records;
+        return tournaments.records; //json query to only get between current season dates
     },
     ScrapeNewTournaments : function() {
         client.tournaments.index({
