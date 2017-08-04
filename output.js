@@ -13,6 +13,9 @@ module.exports = {
     Divider : function() {
         log(chalk.gray("===================================================="));
     },
+    SmallDivider : function() {
+            log(chalk.white.bgBlack.bold("<><><><><><><><><><><>"))
+    },
     NewLine : function() {
         log("");
     },

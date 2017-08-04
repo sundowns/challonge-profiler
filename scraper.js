@@ -4,6 +4,7 @@ const challonge = require('challonge');
 const moment = require('moment');
 const chalk = require('chalk');
 const out = require('./output');
+const jsonQuery = require('json-query');
 
 const apiKeys = {
     sundowns : "PT1KemvjhEPtVhWhBEKg2oJjxAajf3aUwLRPZiIZ",
@@ -25,6 +26,10 @@ let saveTournamentData = function() {
     jsonfile.writeFileSync(tournamentsFilePath, tournaments);
 }
 
+let saveMatchesData = function () {
+    jsonfile.writeFileSync(matchesFilePath, matches)
+}
+
 let saveConfig = function() {
     jsonfile.writeFileSync(configFilePath, config);
 }
@@ -36,7 +41,8 @@ let processTournamentData = function(data) {
             var record = data[key].tournament;
             if (record.gameId == meleeId &&
             !record.name.toLowerCase().includes("doubles") &&
-            !record.name.toLowerCase().includes("crew")) {
+            !record.name.toLowerCase().includes("crew") &&
+            tournaments.scraped.indexOf(record.id) < 0) {
                 count++;
                 var new_tournament = {
                     "id": record.id,
@@ -44,7 +50,8 @@ let processTournamentData = function(data) {
                     "startDate" : record.startedAt,
                     "endDate" : record.completedAt,
                     "participants": record.participantsCount,
-                    "owner" : config.currentApiUser
+                    "owner" : config.currentApiUser,
+                    "matchesScraped": 0
                 }
                 tournaments.records.push(new_tournament);
                 tournaments.scraped.push(new_tournament.id);
@@ -61,44 +68,113 @@ let processTournamentData = function(data) {
     }
 }
 
+let processMatchesData = function(data) {
+    var count = 0;
+    for (var key in data) {
+        if (data.hasOwnProperty(key)) {
+            var record = data[key];
+            for (var index in record.matches) {
+                if (matches.scraped.indexOf(record.matches[index].match.id) < 0
+                && record.matches[index].match.state === "complete") {
+                    count++;
+                    var match = record.matches[index].match;
+                    var new_match = {
+                        "id" : match.id,
+                        "tournamentId" : match.tournamentId,
+                        "player1" : match.player1Id,
+                        "player2" : match.player2Id,
+                        "winner" : match.winnerId,
+                        "loser" : match.loserId,
+                        "date" : match.completedAt,
+                        "score" : match.scoresCsv
+                    }
+                    matches.records.push(new_match);
+                    matches.scraped.push(new_match.id);
+                }
+            }
+
+            var tournament = jsonQuery('records[id=' + record.id + ']', {
+                data : tournaments
+            });
+
+            if (tournament && tournament.id != null) {
+                console.log(tournament);
+                tournaments.records[tournament.id].matchesScraped = 1;
+            } else {
+                out.Warning("Failed to find tournament: " + record.id);
+            }
+        }
+    }
+    if (count > 0) {
+        saveMatchesData();
+        saveTournamentData();
+        out.Log(chalk.bold.white("Scraped " + chalk.green("[" + count + "]") + " new matches"));
+        out.Log(chalk.bold.green("Run again with " + chalk.magenta("\'matches\'") + " to see all saved matches"));
+    } else {
+        out.Log(chalk.bold.white("Proccessed empty tournament"));
+    }
+    return count;
+}
+
 module.exports = {
-    Init: function(_config) {
+    Init: function(in_config) {
         matches = jsonfile.readFileSync(matchesFilePath);
         tournaments = jsonfile.readFileSync(tournamentsFilePath);
+        config = in_config;
         client = challonge.createClient({ apiKey : apiKeys[config.currentApiUser] });
-        config = _config;
-
+        if (!tournaments) tournaments = {};
         if (!tournaments.scraped) tournaments.scraped = [];
         if (!tournaments.lastrun) {
             tournaments.lastrun = {};
             for (var key in apiKeys) {
-                tournaments.lastrun[key] = currentSeasonStartDate;
+                tournaments.lastrun[key] = moment("2012-01-01","YYYY-MM-DD");
             }
         }
         if (!tournaments.records) tournaments.records = [];
-    },
-    ListExistingTournaments : function() {
-        return tournaments.records; //json query to only get between current season dates
+        saveTournamentData();
     },
     ScrapeNewTournaments : function() {
-        client.tournaments.index({
+        var request = {
             state: "ended",
-            created_after: tournaments.lastrun[config.currentApiUser],
             callback: (err, data) => {
                 if (err) {
-                    out.Warning(err);
+                    out.Warning(JSON.stringify(err));
                 } else {
                     processTournamentData(data);
                 }
             }
-        });
+        }
+
+        if (tournaments.lastrun[config.currentApiUser]) {
+            request.created_after = tournaments.lastrun[config.currentApiUser];
+        }
+        client.tournaments.index(request);
     },
-    Scrape : function() {
-        return "To be implemented";
-    },
-    Matchup : function(player1, player2) {
-        //TODO query the matches.record collection (https://www.npmjs.com/package/json-query)
-        return matches.records;
+    Scrape : function(tournamentsToScrape) {
+        var owned = 0;
+        var not_owned = 0
+        var matches_count = 0;
+        var other_owners = [];
+        for (var i = 0; i < tournamentsToScrape.length; i++) {
+            if (tournamentsToScrape[i].owner == config.currentApiUser) {
+                owned++;
+                var request = {
+                    id: tournamentsToScrape[i].id,
+                    include_matches: 1,
+                    callback: (err, data) => {
+                        if (err) {
+                            out.Warning(JSON.stringify(err))
+                            return false;
+                        }
+                        matches_count = matches_count + processMatchesData(data);
+                    }
+                };
+                client.tournaments.show(request);
+            } else {
+                other_owners.push(tournamentsToScrape[i].owner);
+                not_owned;
+            }
+        }
     },
     ChangeActiveUser : function(user) {
         if (!apiKeys[user]) {

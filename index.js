@@ -15,13 +15,10 @@ scraper.Init(config);
 manager.Init(config);
 /* Command Handlers */
 let fetchTournamentsFunction = function() {
-    LoadFiles();
     scraper.ScrapeNewTournaments();
 }
 
 let matchupFunction = function(player1, player2) {
-    LoadFiles();
-
     if (!player1) {
         out.Warning("Player 1 not supplied");
         return false;
@@ -35,7 +32,7 @@ let matchupFunction = function(player1, player2) {
     player1 = player1.toLowerCase().replace(/\W/g, '');
     player2 = player2.toLowerCase().replace(/\W/g, '');
 
-    var results = scraper.Matchup(player1, player2);
+    var results = manager.Matchup(player1, player2);
     if (results) {
         out.Success("Matchup data for " + player1 + " vs. " + player2);
         out.Results(JSON.stringify(results));
@@ -43,27 +40,25 @@ let matchupFunction = function(player1, player2) {
 }
 
 let listTournaments = function() {
-    LoadFiles();
-    var existingTournaments = scraper.ListExistingTournaments();
-    if (existingTournaments.length > 0) {
+    var existingTournaments = manager.ListTournaments(program.all);
+    if (existingTournaments && existingTournaments.length > 0) {
+        if (program.all) {
+            out.Log(chalk.rgb(199, 0, 214).bold("     Displaying results for ALL-TIME     "));
+        } else {
+            out.Log(chalk.rgb(199, 0, 214).bold("     Displaying results for " + config.seasons[config.currentSeason].name + "     "));
+        }
         out.NewLine();
         out.Log(chalk.yellow("    Name") + chalk.white("      |  ") + chalk.green("Entrants") + chalk.white("  |  ") + chalk.blue("Completed") + chalk.white("  |  ") + chalk.red("Owner"));
         out.Divider();
         for(var index in existingTournaments) {
             var record = existingTournaments[index];
-            out.Results(chalk.bold.yellow(record.name) + chalk.white(" | ") + chalk.green(record.participants) + chalk.white(" | ") + chalk.blue(moment(record.endDate).format("DD-MM-YYYY")) + chalk.white(" | ") + chalk.red(record.owner));
+            var msg = chalk.bold.yellow(record.name) + chalk.white(" | ") + chalk.green(record.participants) + chalk.white(" | ") + chalk.blue(moment(record.endDate).format("DD-MM-YYYY")) + chalk.white(" | ") + chalk.red(record.owner);
+            if (record.matchesScraped === 0) msg = chalk.red("[!]") + msg;
+            out.Results(msg);
         }
         out.Divider();
     } else {
         out.Warning("No existing tournaments saved.");
-    }
-}
-
-let LoadFiles = function() {
-    var err = scraper.Init();
-    if (err) {
-        out.Warning(err);
-        return false;
     }
 }
 
@@ -94,10 +89,22 @@ let changeSeason = function(season) {
     manager.ChangeSeason(season);
 }
 
-program.version('0.0.1');
+let fetchMatches = function() {
+    var existingTournaments = manager.ListTournaments(false);
+    if (existingTournaments && existingTournaments.length > 0) {
+        scraper.Scrape(existingTournaments);
+        //iterate over them scraping if they are not already recorded
+    }
+}
+
+let listMatches = function() {
+    manager.ListMatches();
+}
+
+program.version('0.0.1').option('-a, --all', 'All-time data');
 
 program.command('tournaments')
-    .description('List all tournaments')
+    .description('List all tournaments.')
     .action(listTournaments);
 
 program.command('fetch')
@@ -112,7 +119,7 @@ program.command('user')
     .description("Display current user")
     .action(currentUser);
 
-program.command('switch [id]')
+program.command('changeuser [id]')
     .description("Change to specified registered user")
     .action(changeUser);
 
@@ -131,5 +138,13 @@ program.command('seasons')
 program.command('changeseason [season]')
     .description("Change current seasons")
     .action(changeSeason);
+
+program.command('fetchmatches')
+    .description("Fetch matches for the current season and API user")
+    .action(fetchMatches);
+
+ program.command('matches')
+    .description("List all matches")
+    .action(listMatches);
 
 program.parse(process.argv);
