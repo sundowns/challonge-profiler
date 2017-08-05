@@ -77,7 +77,8 @@ let processMatchesData = function(data) {
             //console.log(record);
             for(var key in record.participants) {
                 //TODO: Query to see if participant already exists by name, if so add their ID to list of IDs. If not flag for review/potential merge'players[name=' + record.participants[key].participant.name + ']'
-                //https://www.npmjs.com/package/entityjs
+                //https://www.npmjs.com/package/node-persist
+                //https://www.npmjs.com/package/node-persist
                 var existing_player = jsonQuery(["players[name=?]", record.participants[key].participant.name], {
                     data : matches
                 });
