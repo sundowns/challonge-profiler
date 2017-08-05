@@ -76,20 +76,29 @@ let processMatchesData = function(data) {
             var record = data[key];
             //console.log(record);
             for(var key in record.participants) {
-                //TODO: Query to see if participant already exists by name, if so add their ID to list of IDs. If not flag for review/potential merge
+                //TODO: Query to see if participant already exists by name, if so add their ID to list of IDs. If not flag for review/potential merge'players[name=' + record.participants[key].participant.name + ']'
+
+                var existing_player = jsonQuery(["players[name=?]", record.participants[key].participant.name], {
+                    data : matches
+                });
+
+                if (existing_player.value) {
+                    console.log(existing_player);
+                    return false;
+                }
 
                 //console.log(record.participants[key].participant);
                 playersCount++;
                 var player = record.participants[key].participant;
                 var new_player = {
                     "ids" : [],
-                    "name" : player.name,
+                    "name" : player.name.toLowerCase(),
                     "aliases" : [],
                     "new" : 1
                 }
                 new_player.aliases.push(player.name);
                 new_player.ids.push(player.id);
-                out.Log(chalk.green("Added new player " + player.name));
+                out.Success("new player " + player.name);
                 matches.players.push(new_player);
             }
 

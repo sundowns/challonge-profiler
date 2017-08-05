@@ -99,7 +99,9 @@ module.exports = {
     ListPlayers : function(all) {
         if (!Matches || !Matches.players || Matches.players.length < 1) return null;
         out.NewLine();
-        out.Log(chalk.red(JSON.stringify(Matches.players)));
+        for (var i = 0; i < Matches.players.length; i++) {
+            out.Log(chalk.red(JSON.stringify(Matches.players[i])));
+        }
     },
     Matchup : function(player1, player2) {
         //TODO query the matches.record collection (https://www.npmjs.com/package/json-query)
