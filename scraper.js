@@ -69,14 +69,34 @@ let processTournamentData = function(data) {
 }
 
 let processMatchesData = function(data) {
-    var count = 0;
+    var matchesCount = 0;
+    var playersCount = 0;
     for (var key in data) {
         if (data.hasOwnProperty(key)) {
             var record = data[key];
+            //console.log(record);
+            for(var key in record.participants) {
+                //TODO: Query to see if participant already exists by name, if so add their ID to list of IDs. If not flag for review/potential merge
+
+                //console.log(record.participants[key].participant);
+                playersCount++;
+                var player = record.participants[key].participant;
+                var new_player = {
+                    "ids" : [],
+                    "name" : player.name,
+                    "aliases" : [],
+                    "new" : 1
+                }
+                new_player.aliases.push(player.name);
+                new_player.ids.push(player.id);
+                out.Log(chalk.green("Added new player " + player.name));
+                matches.players.push(new_player);
+            }
+
             for (var index in record.matches) {
-                if (matches.scraped.indexOf(record.matches[index].match.id) < 0
+                if (matches.scraped.includes(record.matches[index].match.id) < 0
                 && record.matches[index].match.state === "complete") {
-                    count++;
+                    matchesCount++;
                     var match = record.matches[index].match;
                     var new_match = {
                         "id" : match.id,
@@ -98,22 +118,28 @@ let processMatchesData = function(data) {
             });
 
             if (tournament && tournament.id != null) {
-                console.log(tournament);
+                out.Success("Updated tournament status to scraped"); //TODO: Dont think this ever gets hit!!
                 tournaments.records[tournament.id].matchesScraped = 1;
             } else {
                 out.Warning("Failed to find tournament: " + record.id);
             }
         }
     }
-    if (count > 0) {
+    if (matchesCount > 0 || playersCount > 0) {
         saveMatchesData();
         saveTournamentData();
-        out.Log(chalk.bold.white("Scraped " + chalk.green("[" + count + "]") + " new matches"));
-        out.Log(chalk.bold.green("Run again with " + chalk.magenta("\'matches\'") + " to see all saved matches"));
+        if (matchesCount > 0) {
+            out.Log(chalk.bold.white("Scraped " + chalk.green("[" + matchesCount + "]") + " new matches"));
+            out.Log(chalk.bold.green("Run again with " + chalk.magenta("\'matches\'") + " to see all saved matches"));
+        }
+        if (playersCount > 0) {
+            out.Log(chalk.bold.white("Scraped " + chalk.green("[" + playersCount + "]") + " new players"));
+            out.Log(chalk.bold.green("Run again with " + chalk.magenta("\'players\'") + " to see all saved players"));
+        }
     } else {
         out.Log(chalk.bold.white("Proccessed empty tournament"));
     }
-    return count;
+    return matchesCount;
 }
 
 module.exports = {
@@ -132,6 +158,11 @@ module.exports = {
         }
         if (!tournaments.records) tournaments.records = [];
         saveTournamentData();
+        if (!matches) matches = {};
+        if (!matches.scraped) matches.scraped = [];
+        if (!matches.players) matches.players = [];
+        if (!tournaments.records) tournaments.records = [];
+        saveMatchesData();
     },
     ScrapeNewTournaments : function() {
         var request = {
@@ -161,6 +192,7 @@ module.exports = {
                 var request = {
                     id: tournamentsToScrape[i].id,
                     include_matches: 1,
+                    include_participants: 1,
                     callback: (err, data) => {
                         if (err) {
                             out.Warning(JSON.stringify(err))

@@ -101,6 +101,10 @@ let listMatches = function() {
     manager.ListMatches();
 }
 
+let listPlayers = function() {
+    manager.ListPlayers();
+}
+
 program.version('0.0.1').option('-a, --all', 'All-time data');
 
 program.command('tournaments')
@@ -143,8 +147,12 @@ program.command('fetchmatches')
     .description("Fetch matches for the current season and API user")
     .action(fetchMatches);
 
- program.command('matches')
+program.command('matches')
     .description("List all matches")
     .action(listMatches);
+
+program.command('players')
+    .description("List all players")
+    .action(listPlayers);
 
 program.parse(process.argv);

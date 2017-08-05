@@ -96,6 +96,11 @@ module.exports = {
         // }
          //json query to only get between current season dates
     },
+    ListPlayers : function(all) {
+        if (!Matches || !Matches.players || Matches.players.length < 1) return null;
+        out.NewLine();
+        out.Log(chalk.red(JSON.stringify(Matches.players)));
+    },
     Matchup : function(player1, player2) {
         //TODO query the matches.record collection (https://www.npmjs.com/package/json-query)
         return Matches.records;
