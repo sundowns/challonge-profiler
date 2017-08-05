@@ -57,6 +57,7 @@ module.exports = {
         if (all) {
             return Tournaments.records;
         } else {
+            //https://www.npmjs.com/package/entityjs
             var results = jsonQuery('records[*:inCurrentSeason]', {
                 data : Tournaments,
                 locals: {
