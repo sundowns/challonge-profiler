@@ -73,7 +73,10 @@ module.exports = {
          //json query to only get between current season dates
     },
     ListMatches : function(all) {
-        if (!Matches || !Matches.records || Matches.records.length < 1) return null;
+        if (!Matches || !Matches.records || Matches.records.length < 1) {
+            out.Warning("No currently scraped matches")
+            return null;
+        }
         out.NewLine();
         out.Log(chalk.red(Matches.records.length));
 

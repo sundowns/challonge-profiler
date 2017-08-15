@@ -79,7 +79,8 @@ let processMatchesData = function(data) {
                 //TODO: Query to see if participant already exists by name, if so add their ID to list of IDs. If not flag for review/potential merge'players[name=' + record.participants[key].participant.name + ']'
                 //https://www.npmjs.com/package/node-persist
                 //https://www.npmjs.com/package/node-persist
-                var existing_player = jsonQuery(["players[name=?]", record.participants[key].participant.name], {
+                var queryParamName = record.participants[key].participant.name
+                var existing_player = jsonQuery(["players[name=?]", queryParamName], {
                     data : matches
                 });
 
@@ -123,15 +124,16 @@ let processMatchesData = function(data) {
                 }
             }
 
-            var tournament = jsonQuery('records[id=' + record.id + ']', {
+            var tournament = jsonQuery(['records[id=?]', record.id], {
                 data : tournaments
-            });
+            }).value;
 
             if (tournament && tournament.id != null) {
                 out.Success("Updated tournament status to scraped"); //TODO: Dont think this ever gets hit!!
                 tournaments.records[tournament.id].matchesScraped = 1;
             } else {
                 out.Warning("Failed to find tournament: " + record.id);
+                console.log(tournament);
             }
         }
     }

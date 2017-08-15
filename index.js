@@ -107,6 +107,11 @@ let listPlayers = function() {
 
 program.version('0.0.1').option('-a, --all', 'All-time data');
 
+out.NewLine();
+out.Log(chalk.rgb(255,127,0)("=======[ ") + chalk.yellow("Challonge Scraper v" + program._version) + chalk.rgb(255,127,0)(" ]=======") );
+out.Log(chalk.white("Run again with '-help' flag for list of available commands"))
+out.NewLine();
+
 program.command('tournaments')
     .description('List all tournaments.')
     .action(listTournaments);
