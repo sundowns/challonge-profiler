@@ -61,8 +61,8 @@ let processTournamentData = function(data) {
     if (count > 0) {
         tournaments.lastrun[config.currentApiUser] = moment().format("YYYY-MM-DD");
         saveTournamentData();
-        out.Log(chalk.bold.white("Scraped " + chalk.green("[" + count + "]") + " new tournaments"));
-        out.Log(chalk.bold.green("Run again with " + chalk.magenta("tournaments") + " command to see all saved tournaments"));
+        out.Log(chalk.bold.white("Scraped " + chalk.green("[" + count + "]") + " new " + chalk.green("tournament(s)")));
+        out.Log(chalk.bold.white("Run again with " + chalk.magenta("tournaments") + " command to see all saved tournaments"));
     } else {
         out.Log(chalk.bold.white("No new tournaments found"));
     }
@@ -164,7 +164,8 @@ let processMatchesData = function(data) {
                         "winner" : winner,
                         "loser" : loser,
                         "date" : match.completedAt,
-                        "score" : match.scoresCsv
+                        "score" : match.scoresCsv,
+                        "ordinal" : match.suggestedPlayOrder
                     }
                     matches.records.push(new_match);
                     matches.scraped.push(new_match.id);

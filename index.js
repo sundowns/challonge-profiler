@@ -140,26 +140,35 @@ let listPlayers = function() {
 let playerSummary = function(playerName) {
     var player = manager.GetPlayerByName(playerName);
     if (player.value) {
-        out.Log(chalk.white("Summary for: ") + chalk.bold.yellow(player.value.name.substring(0,1).toUpperCase() + player.value.name.substring(1)));
+        out.Log(chalk.white("Summary for: ") + chalk.bold.magenta(player.value.name.substring(0,1).toUpperCase() + player.value.name.substring(1)) + chalk.green(" [" + player.value.tournamentsEntered + " events]"));
+        out.Divider();
         var matches = manager.GetMatchesForPlayer(playerName);
         matches.sort(function(a,b) {
-            return moment(b.date).isBefore(a.date);;
+            if (a.tournamentId === b.tournamentId) {
+                if (a.ordinal === b.ordinal) return 0;
+                if (a.ordinal > b.ordinal) return 1
+                else return -1;
+            } else {
+                if (moment(a.date, "DD-MM-YYYY").isAfter(moment(b.date, "DD-MM-YYYY"))) return -1
+                else return 1;
+            }
         })
         if (matches && matches.length > 0) {
             for (var i = 0; i < matches.length; i++) {
                 var match = matches[i];
-                //out.Log(chalk.yellow(out.PadStringToSize(match.player1, 25)) + chalk.white(" | ") + chalk.green(" " + match.player2));
+                var score = match.score;
+                if (match.player1 !== playerName) score = score.split("").reverse().join("");
                 if (match.winner === playerName) {
                     out.Log(
-                        chalk.green(chalk.bold("[W] " + match.score) + " ")  +
-                        chalk.green(out.PadStringToSize(match.loser, 20) + " ") +
-                        chalk.blue(moment(match.date).format("DD-MM-YYYY"))
+                        chalk.green.bold("[W] " + score + " ")  +
+                        chalk.yellow.bold(out.PadStringToSize(match.loser, 20) + " ") +
+                        chalk.cyan(moment(match.date).format("DD-MM-YYYY"))
                     );
                 } else { //p2 is winner
                     out.Log(
-                        chalk.red(chalk.bold("[L] " + match.score.split("").reverse().join("")) + " ")  +
-                        chalk.red(out.PadStringToSize(match.winner, 20) + " ") +
-                        chalk.blue(moment(match.date).format("DD-MM-YYYY"))
+                        chalk.red.bold("[L] " + score + " ")  +
+                        chalk.yellow.bold(out.PadStringToSize(match.winner, 20) + " ") +
+                        chalk.cyan(moment(match.date).format("DD-MM-YYYY"))
                     );
                 }
             }
