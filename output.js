@@ -20,6 +20,17 @@ module.exports = {
         log("");
     },
     Log : function(text) {
-        log(text);
+        log(chalk.white(text));
+    },
+    PadStringToSize : function(text, length, padder) {
+        if (!padder) padder = ' ';
+        if (text.length >= length) return text.substring(0, length);
+        else {
+            var difference = length - text.length;
+            for (var i = 0; i < difference; i++) {
+                text += padder;
+            }
+            return text;
+        }
     }
 }

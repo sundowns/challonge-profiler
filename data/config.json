@@ -1,1 +1,17 @@
-{"currentApiUser":"sundowns","currentSeason":2,"seasons":[{"name":"2016 April PR","startDate":"2016-01-04","endDate":"2016-03-24"},{"name":"Ghost Results ;)","startDate":"2016-03-25","endDate":"2016-09-05"},{"name":"2017 PR","startDate":"2016-09-06","endDate":"2017-09-15"}]}
+{
+    "currentApiUser": "sundowns",
+    "currentSeason": 2,
+    "seasons": [{
+        "name": "2016 April PR",
+        "startDate": "2016-01-04",
+        "endDate": "2016-03-24"
+    }, {
+        "name": "Ghost Results ;)",
+        "startDate": "2016-03-25",
+        "endDate": "2016-09-05"
+    }, {
+        "name": "2017 PR",
+        "startDate": "2016-09-06",
+        "endDate": "2017-09-15"
+    }]
+}

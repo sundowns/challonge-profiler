@@ -16,6 +16,26 @@ let saveConfig = function() {
     jsonfile.writeFileSync(configFilePath, Config);
 }
 
+let saveTournamentData = function() {
+    jsonfile.writeFileSync(tournamentsFilePath, Tournaments);
+}
+
+let saveMatchesData = function () {
+    jsonfile.writeFileSync(matchesFilePath, Matches);
+}
+
+let reloadTournamentData = function() {
+    Tournaments = jsonfile.readFileSync(tournamentsFilePath);
+}
+
+let reloadMatchesData = function () {
+    Matches = jsonfile.readFileSync(matchesFilePath);
+}
+
+let reloadAllData = function() {
+    Tournaments = jsonfile.readFileSync(tournamentsFilePath);
+    Matches = jsonfile.readFileSync(matchesFilePath);
+}
 module.exports = {
     Init : function(in_config) {
         Config = in_config;
@@ -51,13 +71,15 @@ module.exports = {
         out.Success("Active season: " + CurrentSeason.name);
     },
     ListTournaments : function(all) {
-        if (!Tournaments || !Tournaments.records || Tournaments.records.length < 1) return null;
+        if (!Tournaments || !Tournaments.records || Tournaments.records.length < 1)  {
+            out.Warning("No existing tournaments saved.");
+            return null;
+        }
 
         out.NewLine();
         if (all) {
             return Tournaments.records;
         } else {
-            //https://www.npmjs.com/package/entityjs
             var results = jsonQuery('records[*:inCurrentSeason]', {
                 data : Tournaments,
                 locals: {
@@ -67,48 +89,93 @@ module.exports = {
                     }
                 }
             });
-
             return results.value;
         }
-         //json query to only get between current season dates
     },
     ListMatches : function(all) {
         if (!Matches || !Matches.records || Matches.records.length < 1) {
-            out.Warning("No currently scraped matches")
+            out.Warning("No existing matches saved.");
             return null;
         }
-        out.NewLine();
-        out.Log(chalk.red(Matches.records.length));
-
-
-        // if (all) {
-        //     out.Log(chalk.rgb(199, 0, 214).bold("     Displaying match results for ALL-TIME     "));
-        //     return Tournaments.records;
-        // } else {
-        //     var results = jsonQuery('records[*:inCurrentSeason]', {
-        //         data : Tournaments,
-        //         locals: {
-        //             inCurrentSeason: function(tournament) {
-        //                 return moment(tournament.startDate, "YYYY-MM-DD").isAfter(CurrentSeason.startDate)
-        //                     && moment(tournament.endDate, "YYYY-MM-DD").isBefore(CurrentSeason.endDate);
-        //             }
-        //         }
-        //     });
-        //
-        //     out.Log(chalk.rgb(199, 0, 214).bold("     Displaying results for " + CurrentSeason.name + "     "));
-        //     return results.value;
-        // }
-         //json query to only get between current season dates
+        return Matches.records;
     },
     ListPlayers : function(all) {
-        if (!Matches || !Matches.players || Matches.players.length < 1) return null;
-        out.NewLine();
-        for (var i = 0; i < Matches.players.length; i++) {
-            out.Log(chalk.red(JSON.stringify(Matches.players[i])));
+        if (!Matches || !Matches.players || Matches.players.length < 1) {
+            out.Warning("No existing players saved.")
+            return null;
         }
+        return Matches.players;
     },
     Matchup : function(player1, player2) {
         //TODO query the matches.record collection (https://www.npmjs.com/package/json-query)
         return Matches.records;
+    },
+    UpdateTournament: function(id, updatedData) {
+        reloadTournamentData();
+        var found = false;
+        var updated = false;
+        for (var i = 0; i< Tournaments.records.length; i++) {
+            if (Tournaments.records[i].id === id) {
+                found = true;
+                for (var key in updatedData) {
+                    if (Tournaments.records[i].hasOwnProperty(key)) {
+                        Tournaments.records[i][key] = updatedData[key];
+                        updated = true;
+                    }
+                }
+            }
+        }
+
+        if (found) {
+            if (updated) {
+                saveTournamentData();
+            } else {
+                out.Warning("Found tournament: " + id + " but no fields were updated");
+            }
+        } else {
+            out.Warning("Failed to find tournament to update: " + id);
+        }
+    },
+    UpdatePlayer: function(name, updatedData) {
+        reloadMatchesData();
+        var found = false;
+        var updated = false;
+        for (var i = 0; i< Matches.players.length; i++) {
+            if (Matches.players[i].name === name) {
+                found = true;
+                for (var key in updatedData) {
+                    if (Matches.players[i].hasOwnProperty(key)) {
+                        Matches.players[i][key] = updatedData[key];
+                        updated = true;
+                    }
+                }
+            }
+        }
+
+        if (found) {
+            if (updated) {
+                out.Log(chalk.yellow("= updated player " + chalk.bold(name)));
+                saveMatchesData();
+            } else {
+                out.Warning("Found player: " + id + " but no fields were updated");
+            }
+        } else {
+            out.Warning("Failed to find player to update: " + id);
+        }
+    },
+    GetPlayerByName: function(playerName) {
+        return jsonQuery(['players[name=?]', playerName], {
+            data: Matches
+        });
+    },
+    GetMatchesForPlayer: function(playerName) {
+        return jsonQuery('records[*:involvesPlayer]', {
+            data: Matches,
+            locals: {
+                involvesPlayer: function(match) {
+                    return match.player1 === playerName || match.player2 === playerName;
+                }
+            }
+        }).value;
     }
 }

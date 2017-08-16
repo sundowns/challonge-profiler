@@ -57,8 +57,6 @@ let listTournaments = function() {
             out.Results(msg);
         }
         out.Divider();
-    } else {
-        out.Warning("No existing tournaments saved.");
     }
 }
 
@@ -93,32 +91,113 @@ let fetchMatches = function() {
     var existingTournaments = manager.ListTournaments(false);
     if (existingTournaments && existingTournaments.length > 0) {
         scraper.Scrape(existingTournaments);
-        //iterate over them scraping if they are not already recorded
+        out.Log(chalk.bold.white("Run again with " + chalk.magenta("\'players\'") + " to see all saved players"));
+        out.Log(chalk.bold.white("Run again with " + chalk.magenta("\'matches\'") + " to see all saved matches"));
+    } else {
+        out.Log("There are no outstanding tournaments to scrape for current user: " + chalk.yellow(config.currentApiUser));
     }
 }
 
 let listMatches = function() {
-    manager.ListMatches();
+    var matchesList = manager.ListMatches();
+    if (matchesList && matchesList.length > 0) {
+        out.NewLine();
+        for (var i = 0; i < matchesList.length; i++) {
+            var match = matchesList[i];
+            if (match.player1 === match.winner) {
+                out.Log(
+                    chalk.green(out.PadStringToSize(match.player1, 20) + "[W] ")  +
+                    chalk.yellow(match.score) + " " +
+                    chalk.red(out.PadStringToSize(match.player2, 20) + "[L]")
+                );
+            } else { //p2 is winner
+                out.Log(
+                    chalk.red(out.PadStringToSize(match.player1, 20) + "[L] ")  +
+                    chalk.yellow(match.score) + " " +
+                    chalk.green(out.PadStringToSize(match.player2, 20) + "[W]")
+                );
+            }
+        }
+    }
 }
 
 let listPlayers = function() {
-    manager.ListPlayers();
+    var playersList = manager.ListPlayers();
+    if (playersList && playersList.length > 0) {
+        playersList.sort(function(a, b) {
+            return b.tournamentsEntered - a.tournamentsEntered
+        });
+        out.NewLine();
+        out.Log(chalk.bold.yellow(out.PadStringToSize("Name", 25)) + chalk.white(" | ") + chalk.green("#Tournaments"));
+        out.Divider();
+        for (var i = 0; i < playersList.length; i++) {
+            var player = playersList[i];
+            out.Log(chalk.yellow(out.PadStringToSize(player.name, 25)) + chalk.white(" | ") + chalk.green(" " + player.tournamentsEntered));
+        }
+    }
+}
+
+let playerSummary = function(playerName) {
+    var player = manager.GetPlayerByName(playerName);
+    if (player.value) {
+        out.Log(chalk.white("Summary for: ") + chalk.bold.yellow(player.value.name.substring(0,1).toUpperCase() + player.value.name.substring(1)));
+        var matches = manager.GetMatchesForPlayer(playerName);
+        matches.sort(function(a,b) {
+            return moment(b.date).isBefore(a.date);;
+        })
+        if (matches && matches.length > 0) {
+            for (var i = 0; i < matches.length; i++) {
+                var match = matches[i];
+                //out.Log(chalk.yellow(out.PadStringToSize(match.player1, 25)) + chalk.white(" | ") + chalk.green(" " + match.player2));
+                if (match.winner === playerName) {
+                    out.Log(
+                        chalk.green(chalk.bold("[W] " + match.score) + " ")  +
+                        chalk.green(out.PadStringToSize(match.loser, 20) + " ") +
+                        chalk.blue(moment(match.date).format("DD-MM-YYYY"))
+                    );
+                } else { //p2 is winner
+                    out.Log(
+                        chalk.red(chalk.bold("[L] " + match.score.split("").reverse().join("")) + " ")  +
+                        chalk.red(out.PadStringToSize(match.winner, 20) + " ") +
+                        chalk.blue(moment(match.date).format("DD-MM-YYYY"))
+                    );
+                }
+            }
+        }
+    } else {
+        out.Warning("Failed to find player: " + playerName);
+    }
 }
 
 program.version('0.0.1').option('-a, --all', 'All-time data');
 
-out.NewLine();
 out.Log(chalk.rgb(255,127,0)("=======[ ") + chalk.yellow("Challonge Scraper v" + program._version) + chalk.rgb(255,127,0)(" ]=======") );
 out.Log(chalk.white("Run again with '-help' flag for list of available commands"))
 out.NewLine();
+
+program.command('fetch')
+    .description('Fetch new tournaments')
+    .action(fetchTournamentsFunction);
+
+program.command('fetchmatches')
+    .description("Fetch matches for the current season and API user")
+    .action(fetchMatches);
 
 program.command('tournaments')
     .description('List all tournaments.')
     .action(listTournaments);
 
-program.command('fetch')
-    .description('Fetch new tournaments')
-    .action(fetchTournamentsFunction);
+program.command('matches')
+    .description("List all matches")
+    .action(listMatches);
+
+program.command('players')
+    .description("List all players")
+    .action(listPlayers);
+
+program.command('player [name]')
+    .description("Display data summary for 1 player")
+    .action(playerSummary);
 
 program.command('mu [player1] [player2]')
     .description('Get head-to-head data for 2 players')
@@ -128,13 +207,13 @@ program.command('user')
     .description("Display current user")
     .action(currentUser);
 
-program.command('changeuser [id]')
-    .description("Change to specified registered user")
-    .action(changeUser);
-
 program.command('users')
     .description('List all registered API users')
     .action(listUsers);
+
+program.command('changeuser [id]')
+    .description("Change to specified registered user")
+    .action(changeUser);
 
 program.command('season')
     .description("Display current season")
@@ -148,16 +227,6 @@ program.command('changeseason [season]')
     .description("Change current seasons")
     .action(changeSeason);
 
-program.command('fetchmatches')
-    .description("Fetch matches for the current season and API user")
-    .action(fetchMatches);
 
-program.command('matches')
-    .description("List all matches")
-    .action(listMatches);
-
-program.command('players')
-    .description("List all players")
-    .action(listPlayers);
 
 program.parse(process.argv);
