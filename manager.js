@@ -106,9 +106,24 @@ module.exports = {
         }
         return Matches.players;
     },
-    Matchup : function(player1, player2) {
-        //TODO query the matches.record collection (https://www.npmjs.com/package/json-query)
-        return Matches.records;
+    Matchup : function(player1, player2, allTime) {
+        query = allTime ? 'records[*:containsBothPlayers]' : 'records[*:containsBothPlayersInSeason]'
+        var results = jsonQuery(query, {
+            data : Matches,
+            locals: {
+                containsBothPlayers: function(match) {
+                    return ((match.player1 === player1 && match.player2 === player2) ||
+                    (match.player1 === player2 && match.player2 === player1))
+                },
+                containsBothPlayersInSeason: function(match) {
+                    return ((match.player1 === player1 && match.player2 === player2)
+                        || (match.player1 === player2 && match.player2 === player1))
+                    && (moment(match.date, "YYYY-MM-DD").isAfter(CurrentSeason.startDate)
+                        && moment(match.date, "YYYY-MM-DD").isBefore(CurrentSeason.endDate));
+                }
+            }
+        });
+        return results.value;
     },
     UpdateTournament: function(id, updatedData) {
         reloadTournamentData();

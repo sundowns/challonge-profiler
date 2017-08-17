@@ -42,11 +42,13 @@ let processTournamentData = function(data) {
             if (record.gameId == meleeId &&
             !record.name.toLowerCase().includes("doubles") &&
             !record.name.toLowerCase().includes("crew") &&
+            !record.name.toLowerCase().includes("dubs") &&
             tournaments.scraped.indexOf(record.id) < 0) {
                 count++;
                 var new_tournament = {
                     "id": record.id,
                     "name" : record.name,
+                    "startDate" : record.startedAt,
                     "startDate" : record.startedAt,
                     "endDate" : record.completedAt,
                     "participants": record.participantsCount,
@@ -159,6 +161,7 @@ let processMatchesData = function(data) {
                     var new_match = {
                         "id" : match.id,
                         "tournamentId" : match.tournamentId,
+                        "tournamentName" : "",
                         "player1" : playerOne.value.name,
                         "player2" : playerTwo.value.name,
                         "winner" : winner,
@@ -167,8 +170,18 @@ let processMatchesData = function(data) {
                         "score" : match.scoresCsv,
                         "ordinal" : match.suggestedPlayOrder
                     }
-                    matches.records.push(new_match);
-                    matches.scraped.push(new_match.id);
+
+                    var tournament = jsonQuery(['records[id=?]', new_match.tournamentId], {
+                        data: tournaments
+                    })
+
+                    if (tournament.value) {
+                        new_match.tournamentName = tournament.value.name;
+                        matches.records.push(new_match);
+                        matches.scraped.push(new_match.id);
+                    } else {
+                        out.Warning("Failed to lookup tournament " + new_match.tournamentId + " for newly scraped match " + new_match.id + ". Will not be saved.")
+                    }
                 }
             }
             manager.UpdateTournament(record.id, {matchesScraped: 1});

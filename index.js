@@ -13,12 +13,13 @@ var config = jsonfile.readFileSync(configFilePath);
 
 scraper.Init(config);
 manager.Init(config);
+
 /* Command Handlers */
-let fetchTournamentsFunction = function() {
+let fetchTournaments = function() {
     scraper.ScrapeNewTournaments();
 }
 
-let matchupFunction = function(player1, player2) {
+let matchup = function(player1, player2) {
     if (!player1) {
         out.Warning("Player 1 not supplied");
         return false;
@@ -32,10 +33,16 @@ let matchupFunction = function(player1, player2) {
     player1 = player1.toLowerCase().replace(/\W/g, '');
     player2 = player2.toLowerCase().replace(/\W/g, '');
 
-    var results = manager.Matchup(player1, player2);
-    if (results) {
-        out.Success("Matchup data for " + player1 + " vs. " + player2);
-        out.Results(JSON.stringify(results));
+    var results = manager.Matchup(player1, player2, program.all);
+    var period = program.all ? "All-Time" : config.seasons[config.currentSeason].name;
+    if (results && results.length > 0) {
+        out.Log("Matchup data for " + chalk.yellow(player1) + " vs. " + chalk.yellow(player2) + chalk.magenta(" [" + period + "]"));
+        out.Divider();
+        out.DisplayMatchupData(results, player1);
+
+    } else {
+        out.Warning("No existing data for " + chalk.yellow(player1) + " vs. " + chalk.yellow(player2) + " from " + chalk.magenta(period));
+        if (!program.all) out.Log("Run again with --all for results from all-time");
     }
 }
 
@@ -102,22 +109,7 @@ let listMatches = function() {
     var matchesList = manager.ListMatches();
     if (matchesList && matchesList.length > 0) {
         out.NewLine();
-        for (var i = 0; i < matchesList.length; i++) {
-            var match = matchesList[i];
-            if (match.player1 === match.winner) {
-                out.Log(
-                    chalk.green(out.PadStringToSize(match.player1, 20) + "[W] ")  +
-                    chalk.yellow(match.score) + " " +
-                    chalk.red(out.PadStringToSize(match.player2, 20) + "[L]")
-                );
-            } else { //p2 is winner
-                out.Log(
-                    chalk.red(out.PadStringToSize(match.player1, 20) + "[L] ")  +
-                    chalk.yellow(match.score) + " " +
-                    chalk.green(out.PadStringToSize(match.player2, 20) + "[W]")
-                );
-            }
-        }
+        out.DisplayMatchList(matchesList);
     }
 }
 
@@ -140,8 +132,6 @@ let listPlayers = function() {
 let playerSummary = function(playerName) {
     var player = manager.GetPlayerByName(playerName);
     if (player.value) {
-        out.Log(chalk.white("Summary for: ") + chalk.bold.magenta(player.value.name.substring(0,1).toUpperCase() + player.value.name.substring(1)) + chalk.green(" [" + player.value.tournamentsEntered + " events]"));
-        out.Divider();
         var matches = manager.GetMatchesForPlayer(playerName);
         matches.sort(function(a,b) {
             if (a.tournamentId === b.tournamentId) {
@@ -153,26 +143,7 @@ let playerSummary = function(playerName) {
                 else return 1;
             }
         })
-        if (matches && matches.length > 0) {
-            for (var i = 0; i < matches.length; i++) {
-                var match = matches[i];
-                var score = match.score;
-                if (match.player1 !== playerName) score = score.split("").reverse().join("");
-                if (match.winner === playerName) {
-                    out.Log(
-                        chalk.green.bold("[W] " + score + " ")  +
-                        chalk.yellow.bold(out.PadStringToSize(match.loser, 20) + " ") +
-                        chalk.cyan(moment(match.date).format("DD-MM-YYYY"))
-                    );
-                } else { //p2 is winner
-                    out.Log(
-                        chalk.red.bold("[L] " + score + " ")  +
-                        chalk.yellow.bold(out.PadStringToSize(match.winner, 20) + " ") +
-                        chalk.cyan(moment(match.date).format("DD-MM-YYYY"))
-                    );
-                }
-            }
-        }
+        out.DisplayPlayerSummary(player, matches);
     } else {
         out.Warning("Failed to find player: " + playerName);
     }
@@ -186,7 +157,7 @@ out.NewLine();
 
 program.command('fetch')
     .description('Fetch new tournaments')
-    .action(fetchTournamentsFunction);
+    .action(fetchTournaments);
 
 program.command('fetchmatches')
     .description("Fetch matches for the current season and API user")
@@ -210,7 +181,7 @@ program.command('player [name]')
 
 program.command('mu [player1] [player2]')
     .description('Get head-to-head data for 2 players')
-    .action(matchupFunction);
+    .action(matchup);
 
 program.command('user')
     .description("Display current user")
@@ -235,7 +206,5 @@ program.command('seasons')
 program.command('changeseason [season]')
     .description("Change current seasons")
     .action(changeSeason);
-
-
 
 program.parse(process.argv);
