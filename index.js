@@ -36,6 +36,7 @@ let matchup = function(player1, player2) {
     var results = manager.Matchup(player1, player2, program.all);
     var period = program.all ? "All-Time" : config.seasons[config.currentSeason].name;
     if (results && results.length > 0) {
+        results.sort(sortMatchesByDateThenRound);
         out.Log("Matchup data for " + chalk.yellow(player1) + " vs. " + chalk.yellow(player2) + chalk.magenta(" [" + period + "]"));
         out.Divider();
         out.DisplayMatchupData(results, player1);
@@ -133,19 +134,22 @@ let playerSummary = function(playerName) {
     var player = manager.GetPlayerByName(playerName);
     if (player.value) {
         var matches = manager.GetMatchesForPlayer(playerName);
-        matches.sort(function(a,b) {
-            if (a.tournamentId === b.tournamentId) {
-                if (a.ordinal === b.ordinal) return 0;
-                if (a.ordinal > b.ordinal) return 1
-                else return -1;
-            } else {
-                if (moment(a.date, "DD-MM-YYYY").isAfter(moment(b.date, "DD-MM-YYYY"))) return -1
-                else return 1;
-            }
-        })
+        matches.sort(sortMatchesByDateThenRound);
         out.DisplayPlayerSummary(player, matches);
     } else {
         out.Warning("Failed to find player: " + playerName);
+    }
+}
+
+/* Helpers */
+let sortMatchesByDateThenRound = function(a,b) {
+    if (a.tournamentId === b.tournamentId) {
+        if (a.ordinal === b.ordinal) return 0;
+        if (a.ordinal > b.ordinal) return 1
+        else return -1;
+    } else {
+        if (moment(a.date).isAfter(moment(b.date))) return 1
+        else return -1;
     }
 }
 

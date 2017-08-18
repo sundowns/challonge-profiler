@@ -10,7 +10,8 @@ const manager = require('./manager');
 const apiKeys = {
     sundowns : "PT1KemvjhEPtVhWhBEKg2oJjxAajf3aUwLRPZiIZ",
     curtinsmash: "hp2vQxBqA0xiAAUHztoDga8QlUVWqEnZUQAkiPyg",
-    perthsmash: "7OJcveK8mQpw4uFaPo6LVsXR5uGnYKxZmbZi7zNN"
+    perthsmash: "7OJcveK8mQpw4uFaPo6LVsXR5uGnYKxZmbZi7zNN",
+    maribro: "PEbIOIyWWqSu0hSSlkKRHWO4XdrUGX0LHfMaMHnI"
 };
 const meleeId = "394";
 const matchesFilePath = __dirname + path.normalize('/data/matches-season1.json');
