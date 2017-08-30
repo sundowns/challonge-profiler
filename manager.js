@@ -8,9 +8,11 @@ const jsonQuery = require('json-query');
 const configFilePath = __dirname + path.normalize('/data/config.json');
 const tournamentsFilePath = __dirname + path.normalize('/data/tournaments.json');
 const matchesFilePath = __dirname + path.normalize('/data/matches-season1.json');
+const aliasesFilePath = __dirname + path.normalize('/data/aliases.json');
 var CurrentSeason = {};
 var Tournaments = {};
 var Matches = {};
+var Aliases = {};
 
 let saveConfig = function() {
     jsonfile.writeFileSync(configFilePath, Config);
@@ -24,6 +26,10 @@ let saveMatchesData = function () {
     jsonfile.writeFileSync(matchesFilePath, Matches);
 }
 
+let saveAliasesData = function () {
+    jsonfile.writeFileSync(aliasesFilePath, Aliases);
+}
+
 let reloadTournamentData = function() {
     Tournaments = jsonfile.readFileSync(tournamentsFilePath);
 }
@@ -35,13 +41,16 @@ let reloadMatchesData = function () {
 let reloadAllData = function() {
     Tournaments = jsonfile.readFileSync(tournamentsFilePath);
     Matches = jsonfile.readFileSync(matchesFilePath);
+    Aliases = jsonfile.readFileSync(aliasesFilePath);
 }
+
 module.exports = {
     Init : function(in_config) {
         Config = in_config;
         CurrentSeason = Config.seasons[Config.currentSeason];
         Tournaments = jsonfile.readFileSync(tournamentsFilePath);
         Matches = jsonfile.readFileSync(matchesFilePath);
+        Aliases = jsonfile.readFileSync(aliasesFilePath);
     },
     DisplayCurrentSeason : function(text) {
         out.NewLine();
@@ -192,5 +201,27 @@ module.exports = {
                 }
             }
         }).value;
+    },
+    GetPlayerByAlias : function(alias) { //TODO:MULTIPLE PLAYERS COULD HAVE THE SAME ALIAS, HANDLE THAT !!!
+        var record = jsonQuery(['data[alias=?]', alias.toLowerCase()], {
+            data : { data : Aliases }
+        })
+        if (record.value) {
+            return record.value;
+        }
+        else {
+            out.Warning("No player exists for alias: " + alias);
+            return null;
+        }
+    },
+    AddAliasToPlayer : function(player, alias) { //TODO: UPDATE INTO MERGE FUNCTION!!
+        var existingPlayer = this.GetPlayerByAlias(alias);
+        if (existingPlayer) {
+            out.Warning("Alias already belongs to " + existingPlayer.player);
+        } else {
+            Aliases.push({"player" : player, "alias" : alias});
+            saveAliasesData();
+            out.Log("Added alias " + chalk.magenta(alias) + " to " + chalk.green(player));
+        }
     }
 }

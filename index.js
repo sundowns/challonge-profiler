@@ -141,6 +141,21 @@ let playerSummary = function(playerName) {
     }
 }
 
+let getPlayerByAlias = function(alias) {
+    var record = manager.GetPlayerByAlias(alias);
+    if (record.player) {
+        out.Success(record.player);
+    }
+}
+
+let addAliasToPlayer = function(alias, player) {
+    if (!alias || !player) {
+        out.Warning("Invalid arguments. Run --help for details");
+        return null;
+    }
+    manager.AddAliasToPlayer(player, alias);
+}
+
 /* Helpers */
 let sortMatchesByDateThenRound = function(a,b) {
     if (a.tournamentId === b.tournamentId) {
@@ -210,5 +225,13 @@ program.command('seasons')
 program.command('changeseason [season]')
     .description("Change current seasons")
     .action(changeSeason);
+
+program.command('getalias [alias]')
+    .description("Get player record for alias")
+    .action(getPlayerByAlias);
+
+program.command('addalias [alias] [player]')
+    .description("Add alias to player record")
+    .action(addAliasToPlayer);
 
 program.parse(process.argv);
