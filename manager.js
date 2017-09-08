@@ -210,7 +210,6 @@ module.exports = {
             return record.value;
         }
         else {
-            out.Warning("No player exists for alias: " + alias);
             return null;
         }
     },
@@ -223,5 +222,10 @@ module.exports = {
             saveAliasesData();
             out.Log("Added alias " + chalk.magenta(alias) + " to " + chalk.green(player));
         }
+    },
+    ListNewPlayers : function() {
+        return jsonQuery(['players[*new=1]'], {
+            data: Matches
+        });
     }
 }

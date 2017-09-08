@@ -132,19 +132,29 @@ let listPlayers = function() {
 
 let playerSummary = function(playerName) {
     var player = manager.GetPlayerByName(playerName);
-    if (player.value) {
+    if (player && player.value) {
         var matches = manager.GetMatchesForPlayer(playerName);
         matches.sort(sortMatchesByDateThenRound);
         out.DisplayPlayerSummary(player, matches);
     } else {
-        out.Warning("Failed to find player: " + playerName);
+        //failed to find exact match, maybe the name is an alias!
+        var aliasRecord = manager.GetPlayerByAlias(playerName);
+        if (aliasRecord && aliasRecord.player) {
+            var matches = manager.GetMatchesForPlayer(aliasRecord.player);
+            matches.sort(sortMatchesByDateThenRound);
+            out.DisplayPlayerSummary(aliasRecord.player, matches);
+        } else {
+            out.Warning("Failed to find player: " + chalk.cyan(playerName));
+        }
     }
 }
 
 let getPlayerByAlias = function(alias) {
     var record = manager.GetPlayerByAlias(alias);
-    if (record.player) {
-        out.Success(record.player);
+    if (record && record.player) {
+        playerSummary(record.player);
+    } else {
+        out.Warning("Failed to find player by alias: " + chalk.cyan(alias));
     }
 }
 
@@ -154,6 +164,15 @@ let addAliasToPlayer = function(alias, player) {
         return null;
     }
     manager.AddAliasToPlayer(player, alias);
+}
+
+let conflictResolution = function() {
+    //Get List of new players
+
+    var newRecords = manager.ListNewPlayers();
+    if (newRecords && newRecords.value) {
+        out.Log(newRecords.value);
+    }
 }
 
 /* Helpers */
@@ -230,8 +249,12 @@ program.command('getalias [alias]')
     .description("Get player record for alias")
     .action(getPlayerByAlias);
 
-program.command('addalias [alias] [player]')
+program.command('addalias [alias] [player]') //TODO: make this redundant with a good merge/conflict resolution function
     .description("Add alias to player record")
     .action(addAliasToPlayer);
+
+program.command('conflicts')
+    .description("List new players for conflict resolution")
+    .action(conflictResolution);
 
 program.parse(process.argv);
