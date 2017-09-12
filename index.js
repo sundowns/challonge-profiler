@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 'use strict';
 const program = require('commander');
+const filemanager = require('./filemanager');
 const out = require('./output');
 const chalk = require('chalk');
 const scraper = require('./scraper');
 const moment = require('moment');
 const manager = require('./manager');
 const jsonfile = require('jsonfile');
-const path = require('path')
-const configFilePath = __dirname + path.normalize('/data/config.json');
-var config = jsonfile.readFileSync(configFilePath);
 
+var config = filemanager.Init();
 scraper.Init(config);
 manager.Init(config);
 

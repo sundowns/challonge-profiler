@@ -3,37 +3,17 @@ const path = require('path');
 const challonge = require('challonge');
 const moment = require('moment');
 const chalk = require('chalk');
+const filemanager = require('./filemanager');
 const out = require('./output');
 const jsonQuery = require('json-query');
 const manager = require('./manager');
 
-const apiKeys = {
-    sundowns : "PT1KemvjhEPtVhWhBEKg2oJjxAajf3aUwLRPZiIZ",
-    curtinsmash: "hp2vQxBqA0xiAAUHztoDga8QlUVWqEnZUQAkiPyg",
-    perthsmash: "7OJcveK8mQpw4uFaPo6LVsXR5uGnYKxZmbZi7zNN",
-    maribro: "PEbIOIyWWqSu0hSSlkKRHWO4XdrUGX0LHfMaMHnI"
-};
 const meleeId = "394";
-const matchesFilePath = __dirname + path.normalize('/data/matches-season1.json');
-const tournamentsFilePath = __dirname + path.normalize('/data/tournaments.json');
-const configFilePath = __dirname + path.normalize('/data/config.json');
 
 var client = {};
 var matches = {};
 var tournaments = {};
 var config = {};
-
-let saveTournamentData = function() {
-    jsonfile.writeFileSync(tournamentsFilePath, tournaments);
-}
-
-let saveMatchesData = function () {
-    jsonfile.writeFileSync(matchesFilePath, matches)
-}
-
-let saveConfig = function() {
-    jsonfile.writeFileSync(configFilePath, config);
-}
 
 let processTournamentData = function(data) {
     var count = 0;
@@ -63,7 +43,7 @@ let processTournamentData = function(data) {
     }
     if (count > 0) {
         tournaments.lastrun[config.currentApiUser] = moment().format("YYYY-MM-DD");
-        saveTournamentData();
+        filemanager.WriteTournamentsFile(config.currentSeason, tournaments);
         out.Log(chalk.bold.white("Scraped " + chalk.green("[" + count + "]") + " new " + chalk.green("tournament(s)")));
         out.Log(chalk.bold.white("Run again with " + chalk.magenta("tournaments") + " command to see all saved tournaments"));
     } else {
@@ -93,13 +73,13 @@ let processMatchesData = function(data) {
                 });
 
                 if (existingPlayer.value) { //Player already exists, TODO: update their list of IDs
-                    saveMatchesData();
+                    filemanager.WriteMatchesFile(config.currentSeason, matches);
                     manager.UpdatePlayer(existingPlayer.value.name, {
                         ids: existingPlayer.value.ids.concat([record.participants[key].participant.id]),
                         lastTournamentId: record.id,
                         tournamentsEntered: existingPlayer.value.tournamentsEntered + 1
                     });
-                    reloadMatchesData();
+                    loadMatchesData();
                     continue;
                 }
 
@@ -119,7 +99,7 @@ let processMatchesData = function(data) {
                 matches.players.push(newPlayer);
             }
             if (playersCount > 0) {
-                saveMatchesData();
+                filemanager.WriteMatchesFile(config.currentSeason, matches);
                 out.Log(chalk.bold.white("Scraped " + chalk.yellow("[" + playersCount + "]") + " new " + chalk.yellow("players")));
             }
             /*Scrape Matches*/
@@ -189,46 +169,31 @@ let processMatchesData = function(data) {
         }
     }
     if (matchesCount > 0) {
-        saveMatchesData();
+        filemanager.WriteMatchesFile(config.currentSeason, matches);
         out.Log(chalk.bold.white("Scraped " + chalk.yellow("[" + matchesCount + "]") + " new " + chalk.yellow("matches")));
     }
     return matchesCount;
 }
 
-let reloadTournamentData = function() {
-    tournaments = jsonfile.readFileSync(tournamentsFilePath);
+let loadTournamentData = function() {
+    tournaments = filemanager.GetTournamentsForSeason(config.currentSeason);
 }
 
-let reloadMatchesData = function () {
-    matches = jsonfile.readFileSync(matchesFilePath);
+let loadMatchesData = function () {
+    matches = filemanager.GetMatchesForSeason(config.currentSeason);
 }
 
 let reloadAllData = function() {
-    tournaments = jsonfile.readFileSync(tournamentsFilePath);
-    matches = jsonfile.readFileSync(matchesFilePath);
+    loadTournamentData();
+    loadMatchesData();
 }
 
 module.exports = {
     Init: function(in_config) {
-        tournaments = jsonfile.readFileSync(tournamentsFilePath);
-        matches = jsonfile.readFileSync(matchesFilePath);
         config = in_config;
-        client = challonge.createClient({ apiKey : apiKeys[config.currentApiUser] });
-        if (!tournaments) tournaments = {};
-        if (!tournaments.scraped) tournaments.scraped = [];
-        if (!tournaments.lastrun) {
-            tournaments.lastrun = {};
-            for (var key in apiKeys) {
-                tournaments.lastrun[key] = moment("2012-01-01","YYYY-MM-DD");
-            }
-        }
-        if (!tournaments.records) tournaments.records = [];
-        saveTournamentData();
-        if (!matches) matches = {};
-        if (!matches.scraped) matches.scraped = [];
-        if (!matches.players) matches.players = [];
-        if (!tournaments.records) tournaments.records = [];
-        saveMatchesData();
+        loadTournamentData();
+        loadMatchesData();
+        client = challonge.createClient({ apiKey : config.apiKeys[config.currentApiUser] });
     },
     ScrapeNewTournaments : function() {
         var request = {
@@ -270,19 +235,19 @@ module.exports = {
         }
     },
     ChangeActiveUser : function(user) {
-        if (!apiKeys[user]) {
+        if (!config.apiKeys[user]) {
             out.Warning("User " + user + " does not exist");
         } else {
             config.currentApiUser = user;
-            saveConfig();
+            filemanager.WriteConfig(config);
             out.Success("Switched to user: " + user);
         }
     },
     ListRegisteredApiUsers: function() {
         out.Log(chalk.blue("User") + chalk.white("  |  ") + chalk.yellow("API Key"))
-        for(var user in apiKeys) {
-            if (apiKeys.hasOwnProperty(user)) {
-                var output = user + " " + chalk.yellow(apiKeys[user]);
+        for(var user in config.apiKeys) {
+            if (config.apiKeys.hasOwnProperty(user)) {
+                var output = user + " " + chalk.yellow(config.apiKeys[user]);
                 if (user === config.currentApiUser) {
                     output = output + " " + chalk.red("(active)")
                 }

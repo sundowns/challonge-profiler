@@ -1,46 +1,33 @@
 var Config = {}
 const out = require('./output');
+const filemanager = require('./filemanager');
 const chalk = require('chalk');
 const path = require ('path');
 const jsonfile = require('jsonfile');
 const moment = require('moment');
 const jsonQuery = require('json-query');
-const configFilePath = __dirname + path.normalize('/data/config.json');
-const tournamentsFilePath = __dirname + path.normalize('/data/tournaments.json');
-const matchesFilePath = __dirname + path.normalize('/data/matches-season1.json');
 const aliasesFilePath = __dirname + path.normalize('/data/aliases.json');
 var CurrentSeason = {};
 var Tournaments = {};
 var Matches = {};
 var Aliases = {};
 
-let saveConfig = function() {
-    jsonfile.writeFileSync(configFilePath, Config);
-}
-
-let saveTournamentData = function() {
-    jsonfile.writeFileSync(tournamentsFilePath, Tournaments);
-}
-
-let saveMatchesData = function () {
-    jsonfile.writeFileSync(matchesFilePath, Matches);
-}
 
 let saveAliasesData = function () {
     jsonfile.writeFileSync(aliasesFilePath, Aliases);
 }
 
-let reloadTournamentData = function() {
-    Tournaments = jsonfile.readFileSync(tournamentsFilePath);
+let loadTournamentData = function() {
+    Tournaments = filemanager.GetTournamentsForSeason(Config.currentSeason);
 }
 
-let reloadMatchesData = function () {
-    Matches = jsonfile.readFileSync(matchesFilePath);
+let loadMatchesData = function () {
+    Matches = filemanager.GetMatchesForSeason(Config.currentSeason);
 }
 
 let reloadAllData = function() {
-    Tournaments = jsonfile.readFileSync(tournamentsFilePath);
-    Matches = jsonfile.readFileSync(matchesFilePath);
+    loadTournamentData();
+    loadMatchesData();
     Aliases = jsonfile.readFileSync(aliasesFilePath);
 }
 
@@ -48,8 +35,8 @@ module.exports = {
     Init : function(in_config) {
         Config = in_config;
         CurrentSeason = Config.seasons[Config.currentSeason];
-        Tournaments = jsonfile.readFileSync(tournamentsFilePath);
-        Matches = jsonfile.readFileSync(matchesFilePath);
+        loadTournamentData();
+        loadMatchesData();
         Aliases = jsonfile.readFileSync(aliasesFilePath);
     },
     DisplayCurrentSeason : function(text) {
@@ -76,7 +63,7 @@ module.exports = {
         }
         Config.currentSeason = index-1;
         CurrentSeason = Config.seasons[Config.currentSeason];
-        saveConfig();
+        filemanager.WriteConfig(Config);
         out.Success("Active season: " + CurrentSeason.name);
     },
     ListTournaments : function(all) {
@@ -135,7 +122,7 @@ module.exports = {
         return results.value;
     },
     UpdateTournament: function(id, updatedData) {
-        reloadTournamentData();
+        loadTournamentData();
         var found = false;
         var updated = false;
         for (var i = 0; i< Tournaments.records.length; i++) {
@@ -152,7 +139,7 @@ module.exports = {
 
         if (found) {
             if (updated) {
-                saveTournamentData();
+                filemanager.WriteTournamentsFile(Config.currentSeason, Tournaments);
             } else {
                 out.Warning("Found tournament: " + id + " but no fields were updated");
             }
@@ -161,7 +148,7 @@ module.exports = {
         }
     },
     UpdatePlayer: function(name, updatedData) {
-        reloadMatchesData();
+        loadMatchesData();
         var found = false;
         var updated = false;
         for (var i = 0; i< Matches.players.length; i++) {
@@ -179,7 +166,8 @@ module.exports = {
         if (found) {
             if (updated) {
                 out.Log(chalk.yellow("= updated player " + chalk.bold(name)));
-                saveMatchesData();
+                filemanager.WriteMatchesFile(Config.currentSeason, Matches);
+
             } else {
                 out.Warning("Found player: " + id + " but no fields were updated");
             }
