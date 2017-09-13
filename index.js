@@ -134,7 +134,8 @@ let playerSummary = function(playerName) {
     if (player && player.value) {
         var matches = manager.GetMatchesForPlayer(playerName);
         matches.sort(sortMatchesByDateThenRound);
-        out.DisplayPlayerSummary(player, matches);
+        var stats = manager.CalculateStatsForPlayer(player.value, matches);
+        out.DisplayPlayerSummary(player.value, matches, stats);
     } else {
         //failed to find exact match, maybe the name is an alias!
         var aliasRecord = manager.GetPlayerByAlias(playerName);

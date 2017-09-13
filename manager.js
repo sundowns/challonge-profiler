@@ -6,16 +6,12 @@ const path = require ('path');
 const jsonfile = require('jsonfile');
 const moment = require('moment');
 const jsonQuery = require('json-query');
-const aliasesFilePath = __dirname + path.normalize('/data/aliases.json');
+
 var CurrentSeason = {};
 var Tournaments = {};
 var Matches = {};
 var Aliases = {};
-
-
-let saveAliasesData = function () {
-    jsonfile.writeFileSync(aliasesFilePath, Aliases);
-}
+var Players = {};
 
 let loadTournamentData = function() {
     Tournaments = filemanager.GetTournamentsForSeason(Config.currentSeason);
@@ -25,10 +21,19 @@ let loadMatchesData = function () {
     Matches = filemanager.GetMatchesForSeason(Config.currentSeason);
 }
 
+let loadPlayersData = function () {
+    Players = filemanager.GetPlayersForSeason(Config.currentSeason);
+}
+
+let loadAliasesData = function () {
+    Aliases = filemanager.GetAliases(Config.currentSeason);
+}
+
 let reloadAllData = function() {
     loadTournamentData();
     loadMatchesData();
-    Aliases = jsonfile.readFileSync(aliasesFilePath);
+    loadPlayersData();
+    loadAliasesData();
 }
 
 module.exports = {
@@ -37,7 +42,8 @@ module.exports = {
         CurrentSeason = Config.seasons[Config.currentSeason];
         loadTournamentData();
         loadMatchesData();
-        Aliases = jsonfile.readFileSync(aliasesFilePath);
+        loadPlayersData();
+        loadAliasesData();
     },
     DisplayCurrentSeason : function(text) {
         out.NewLine();
@@ -96,11 +102,11 @@ module.exports = {
         return Matches.records;
     },
     ListPlayers : function(all) {
-        if (!Matches || !Matches.players || Matches.players.length < 1) {
+        if (!Players || !Players.records || Players.records.length < 1) {
             out.Warning("No existing players saved.")
             return null;
         }
-        return Matches.players;
+        return Players.records;
     },
     Matchup : function(player1, player2, allTime) {
         query = allTime ? 'records[*:containsBothPlayers]' : 'records[*:containsBothPlayersInSeason]'
@@ -148,15 +154,15 @@ module.exports = {
         }
     },
     UpdatePlayer: function(name, updatedData) {
-        loadMatchesData();
+        loadPlayersData();
         var found = false;
         var updated = false;
-        for (var i = 0; i< Matches.players.length; i++) {
-            if (Matches.players[i].name === name) {
+        for (var i = 0; i< Players.records.length; i++) {
+            if (Players.records[i].name === name) {
                 found = true;
                 for (var key in updatedData) {
-                    if (Matches.players[i].hasOwnProperty(key)) {
-                        Matches.players[i][key] = updatedData[key];
+                    if (Players.records[i].hasOwnProperty(key)) {
+                        Players.records[i][key] = updatedData[key];
                         updated = true;
                     }
                 }
@@ -166,7 +172,7 @@ module.exports = {
         if (found) {
             if (updated) {
                 out.Log(chalk.yellow("= updated player " + chalk.bold(name)));
-                filemanager.WriteMatchesFile(Config.currentSeason, Matches);
+                filemanager.WritePlayersFile(Config.currentSeason, Players);
 
             } else {
                 out.Warning("Found player: " + id + " but no fields were updated");
@@ -176,8 +182,8 @@ module.exports = {
         }
     },
     GetPlayerByName: function(playerName) {
-        return jsonQuery(['players[name=?]', playerName], {
-            data: Matches
+        return jsonQuery(['records[name=?]', playerName], {
+            data: Players
         });
     },
     GetMatchesForPlayer: function(playerName) {
@@ -207,13 +213,67 @@ module.exports = {
             out.Warning("Alias already belongs to " + existingPlayer.player);
         } else {
             Aliases.push({"player" : player, "alias" : alias});
-            saveAliasesData();
+            filemanager.WriteAliasesFile(Aliases);
             out.Log("Added alias " + chalk.magenta(alias) + " to " + chalk.green(player));
         }
     },
     ListNewPlayers : function() {
-        return jsonQuery(['players[*new=1]'], {
-            data: Matches
+        return jsonQuery(['records[*new=1]'], {
+            data: Players
         });
+    },
+    CalculateStatsForPlayer : function(player, matches) {
+        var matchesWon = jsonQuery(['data[*winner=?]', player.name], {
+            data: { data : matches }
+        }).value;
+        var matchesLost = jsonQuery(['data[*loser=?]', player.name], {
+            data: { data : matches }
+        }).value;
+
+        //Biggest victim calcs
+        var victims = [];
+        var mostWins = 0;
+        var biggestVictim = "N/A";
+        for(var i = 0; i < matchesWon.length; i++) {
+            var thisVictim = matchesWon[i].loser;
+            if (!victims[thisVictim]) {
+                victims[thisVictim] = 1;
+            } else {
+                victims[thisVictim]++;
+            }
+            if (victims[thisVictim] > mostWins) {
+                mostWins = victims[thisVictim];
+                biggestVictim = thisVictim;
+            }
+        }
+
+        //Biggest demon calcs
+        var demons = [];
+        var mostLosses = 0;
+        var biggestDemon = "N/A";
+        for(var i = 0; i < matchesLost.length; i++) {
+            var thisDemon = matchesLost[i].winner;
+            if (!demons[thisDemon]) {
+                demons[thisDemon] = 1;
+            } else {
+                demons[thisDemon]++;
+            }
+            if (demons[thisDemon] > mostLosses) {
+                mostLosses = demons[thisDemon];
+                biggestDemon = thisDemon;
+            }
+        }
+
+        var stats = {
+            "matchesTotal" : matches.length,
+            "matchesWon" : matchesWon.length,
+            "matchesLost" : matches.length - matchesWon.length,
+            "tournamentsEntered" : player.tournamentsEntered,
+            "victim" : biggestVictim,
+            "victimWins" : mostWins,
+            "demon": biggestDemon,
+            "demonLosses" : mostLosses
+        }
+        return stats;
     }
 }

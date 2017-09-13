@@ -5,6 +5,7 @@ const chalk = require ("chalk");
 const fs = require('fs');
 const moment = require('moment');
 const configFilePath = __dirname + path.normalize('/data/config.json');
+const aliasesFilePath = __dirname + path.normalize('/data/aliases.json');
 var Config = {};
 
 /* Helpers */
@@ -16,6 +17,10 @@ let buildTournamentsPath = function(season) {
     return __dirname + path.normalize('/data/' + season + '/tournaments.json');
 }
 
+let buildPlayersPath = function(season) {
+    return __dirname + path.normalize('/data/' + season + '/players.json');
+}
+
 let checkSeasonDirectoryExists = function(season) {
     if (!fs.existsSync(__dirname + path.normalize('/data/' + season + '/'))) {
         out.Success("Creating directory for season " + season);
@@ -23,21 +28,17 @@ let checkSeasonDirectoryExists = function(season) {
     }
 }
 
-//TODO: soon
-// let buildPlayersPath = function(season) {
-//     return __dirname + path.normalize('/data/' + season + '/players.json');
-// }
-
 module.exports = {
     Init : function() {
         Config = this.GetConfig();
         return Config;
     },
     GetConfig : function() {
-        var config = jsonfile.readFileSync(configFilePath);
-        if (!config) {
+        var config = {}
+        if (!fs.existsSync(configFilePath)) {
             out.Warning("Failed to locate config file");
         } else {
+            config = jsonfile.readFileSync(configFilePath);
             return config;
         }
     },
@@ -51,7 +52,6 @@ module.exports = {
         if (!fs.existsSync(buildMatchesPath(season))) {  //check season matches file exists (if not, create)
             out.Success("Creating matches file for: " + chalk.magenta(Config.seasons[Config.currentSeason].name));
             matches = {
-                "players" : [],
                 "records" : [],
                 "scraped" : []
             }
@@ -87,5 +87,37 @@ module.exports = {
     },
     WriteTournamentsFile : function(season, tournaments) {
         jsonfile.writeFileSync(buildTournamentsPath(season), tournaments);
-    }
+    },
+    GetPlayersForSeason : function(season) {
+        checkSeasonDirectoryExists(season);
+        var players = null;
+
+        if (!fs.existsSync(buildPlayersPath(season))) {
+            out.Success("Creating players file for: " + chalk.magenta(Config.seasons[Config.currentSeason].name));
+            players = {
+                "records" : []
+            }
+            this.WritePlayersFile(season, players);
+        } else {
+            players = jsonfile.readFileSync(buildPlayersPath(season));
+        }
+        return players;
+    },
+    WritePlayersFile : function(season, players) {
+        jsonfile.writeFileSync(buildPlayersPath(season), players);
+    },
+    GetAliases : function() {
+        var aliases = {}
+        if (!fs.existsSync(aliasesFilePath)) {
+            out.Warning("Failed to locate alias file, creating a blank one");
+            aliases = [];
+            this.WriteAliasesFile(aliases);
+        } else {
+            aliases = jsonfile.readFileSync(aliasesFilePath);
+            return aliases;
+        }
+    },
+    WriteAliasesFile : function(aliases) {
+        jsonfile.writeFileSync(aliasesFilePath, aliases);
+    },
 }

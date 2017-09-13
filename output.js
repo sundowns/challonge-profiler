@@ -90,15 +90,19 @@ module.exports = {
             }
         }
     },
-    DisplayPlayerSummary: function(player, matches) {
-        this.Log(chalk.white("Summary for: ") + chalk.bold.magenta(player.value.name.substring(0,1).toUpperCase() + player.value.name.substring(1)) + chalk.green(" [" + player.value.tournamentsEntered + " events]"));
+    DisplayPlayerSummary: function(player, matches, stats) {
+        this.Log(chalk.bold.magenta(player.name.substring(0,1).toUpperCase() + player.name.substring(1)) + chalk.green(" [" + player.tournamentsEntered + " events]"));
+        this.Divider();
+        this.Log(chalk.bold.white("Sets: ") + chalk.cyan(stats.matchesTotal) + " (" + chalk.green(stats.matchesWon) + "/" + chalk.red(stats.matchesLost) + ")");
+        this.Log(chalk.bold.white("Victim: ") + chalk.cyan(stats.victim) + " (" + chalk.green(stats.victimWins + " wins" ) + ")")
+        this.Log(chalk.bold.white("Demon: ") + chalk.cyan(stats.demon) + " (" + chalk.green(stats.demonLosses + " losses" ) + ")")
         this.Divider();
         if (matches && matches.length > 0) {
             for (var i = 0; i < matches.length; i++) {
                 var match = matches[i];
                 var score = match.score;
-                if (match.player1 !== player.value.name) score = score.split("").reverse().join("");
-                if (match.winner === player.value.name) {
+                if (match.player1 !== player.name) score = score.split("").reverse().join("");
+                if (match.winner === player.name) {
                     this.Log(
                         chalk.green.bold("[W] " + score + " ")  +
                         chalk.yellow.bold(this.PadStringToSize(match.loser, 20) + " ") +

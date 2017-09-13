@@ -11,9 +11,10 @@ const manager = require('./manager');
 const meleeId = "394";
 
 var client = {};
-var matches = {};
-var tournaments = {};
-var config = {};
+var Matches = {};
+var Tournaments = {};
+var Config = {};
+var Players = {};
 
 let processTournamentData = function(data) {
     var count = 0;
@@ -24,7 +25,7 @@ let processTournamentData = function(data) {
             !record.name.toLowerCase().includes("doubles") &&
             !record.name.toLowerCase().includes("crew") &&
             !record.name.toLowerCase().includes("dubs") &&
-            tournaments.scraped.indexOf(record.id) < 0) {
+            Tournaments.scraped.indexOf(record.id) < 0) {
                 count++;
                 var new_tournament = {
                     "id": record.id,
@@ -33,17 +34,17 @@ let processTournamentData = function(data) {
                     "startDate" : record.startedAt,
                     "endDate" : record.completedAt,
                     "participants": record.participantsCount,
-                    "owner" : config.currentApiUser,
+                    "owner" : Config.currentApiUser,
                     "matchesScraped": 0
                 }
-                tournaments.records.push(new_tournament);
-                tournaments.scraped.push(new_tournament.id);
+                Tournaments.records.push(new_tournament);
+                Tournaments.scraped.push(new_tournament.id);
             }
         }
     }
     if (count > 0) {
-        tournaments.lastrun[config.currentApiUser] = moment().format("YYYY-MM-DD");
-        filemanager.WriteTournamentsFile(config.currentSeason, tournaments);
+        Tournaments.lastrun[Config.currentApiUser] = moment().format("YYYY-MM-DD");
+        filemanager.WriteTournamentsFile(Config.currentSeason, Tournaments);
         out.Log(chalk.bold.white("Scraped " + chalk.green("[" + count + "]") + " new " + chalk.green("tournament(s)")));
         out.Log(chalk.bold.white("Run again with " + chalk.magenta("tournaments") + " command to see all saved tournaments"));
     } else {
@@ -63,8 +64,8 @@ let processMatchesData = function(data) {
             for(var key in record.participants) {
                 var queryParamName = record.participants[key].participant.name.toLowerCase();
 
-                var existingPlayer = jsonQuery('players[:hasUsedAlias]', {
-                    data : matches,
+                var existingPlayer = jsonQuery('records[:hasUsedAlias]', {
+                    data : Players,
                     locals: {
                         hasUsedAlias: function(player) {
                             return player.name == queryParamName || player.aliases.indexOf(queryParamName) > -1;
@@ -72,14 +73,14 @@ let processMatchesData = function(data) {
                     }
                 });
 
-                if (existingPlayer.value) { //Player already exists, TODO: update their list of IDs
-                    filemanager.WriteMatchesFile(config.currentSeason, matches);
+                if (existingPlayer.value) {
+                    filemanager.WritePlayersFile(Config.currentSeason, Players); //save what we have for manager to deal with
                     manager.UpdatePlayer(existingPlayer.value.name, {
                         ids: existingPlayer.value.ids.concat([record.participants[key].participant.id]),
                         lastTournamentId: record.id,
                         tournamentsEntered: existingPlayer.value.tournamentsEntered + 1
                     });
-                    loadMatchesData();
+                    loadPlayersData(); //reload post-manager update
                     continue;
                 }
 
@@ -96,21 +97,21 @@ let processMatchesData = function(data) {
                 newPlayer.aliases.push(player.name);
                 newPlayer.ids.push(player.id);
                 out.Success("+ created player " + newPlayer.name);
-                matches.players.push(newPlayer);
+                Players.records.push(newPlayer);
             }
             if (playersCount > 0) {
-                filemanager.WriteMatchesFile(config.currentSeason, matches);
+                filemanager.WritePlayersFile(Config.currentSeason, Players);
                 out.Log(chalk.bold.white("Scraped " + chalk.yellow("[" + playersCount + "]") + " new " + chalk.yellow("players")));
             }
             /*Scrape Matches*/
             for (var index in record.matches) {
-                if (matches.scraped.indexOf(record.matches[index].match.id) === -1
+                if (Matches.scraped.indexOf(record.matches[index].match.id) === -1
                 && record.matches[index].match.state === "complete") {
                     matchesCount++;
                     var match = record.matches[index].match;
 
-                    var playerOne = jsonQuery('players[:isPlayerOne]', {
-                        data : matches,
+                    var playerOne = jsonQuery('records[:isPlayerOne]', {
+                        data : Players,
                         locals: {
                             isPlayerOne: function(player) {
                                 return player.ids.indexOf(match.player1Id) > -1;
@@ -121,8 +122,8 @@ let processMatchesData = function(data) {
                         out.Warning("Failed to find player one with id: " + match.player1Id)
                         continue;
                     }
-                    var playerTwo = jsonQuery('players[:isPlayerTwo]', {
-                        data : matches,
+                    var playerTwo = jsonQuery('records[:isPlayerTwo]', {
+                        data : Players,
                         locals: {
                             isPlayerTwo: function(player) {
                                 return player.ids.indexOf(match.player2Id) > -1;
@@ -153,13 +154,13 @@ let processMatchesData = function(data) {
                     }
 
                     var tournament = jsonQuery(['records[id=?]', new_match.tournamentId], {
-                        data: tournaments
+                        data: Tournaments
                     })
 
                     if (tournament.value) {
                         new_match.tournamentName = tournament.value.name;
-                        matches.records.push(new_match);
-                        matches.scraped.push(new_match.id);
+                        Matches.records.push(new_match);
+                        Matches.scraped.push(new_match.id);
                     } else {
                         out.Warning("Failed to lookup tournament " + new_match.tournamentId + " for newly scraped match " + new_match.id + ". Will not be saved.")
                     }
@@ -169,31 +170,37 @@ let processMatchesData = function(data) {
         }
     }
     if (matchesCount > 0) {
-        filemanager.WriteMatchesFile(config.currentSeason, matches);
+        filemanager.WriteMatchesFile(Config.currentSeason, Matches);
         out.Log(chalk.bold.white("Scraped " + chalk.yellow("[" + matchesCount + "]") + " new " + chalk.yellow("matches")));
     }
     return matchesCount;
 }
 
 let loadTournamentData = function() {
-    tournaments = filemanager.GetTournamentsForSeason(config.currentSeason);
+    Tournaments = filemanager.GetTournamentsForSeason(Config.currentSeason);
 }
 
 let loadMatchesData = function () {
-    matches = filemanager.GetMatchesForSeason(config.currentSeason);
+    Matches = filemanager.GetMatchesForSeason(Config.currentSeason);
+}
+
+let loadPlayersData = function () {
+    Players = filemanager.GetPlayersForSeason(Config.currentSeason);
 }
 
 let reloadAllData = function() {
     loadTournamentData();
     loadMatchesData();
+    loadPlayersData();
 }
 
 module.exports = {
     Init: function(in_config) {
-        config = in_config;
+        Config = in_config;
         loadTournamentData();
         loadMatchesData();
-        client = challonge.createClient({ apiKey : config.apiKeys[config.currentApiUser] });
+        loadPlayersData();
+        client = challonge.createClient({ apiKey : Config.apiKeys[Config.currentApiUser] });
     },
     ScrapeNewTournaments : function() {
         var request = {
@@ -206,7 +213,7 @@ module.exports = {
                 }
             }
         }
-        request.created_after = config.seasons[config.currentSeason].startDate;
+        request.created_after = Config.seasons[Config.currentSeason].startDate;
         client.tournaments.index(request);
     },
     Scrape : function(tournamentsToScrape) {
@@ -216,7 +223,7 @@ module.exports = {
             if (tournamentsToScrape[i].matchesScraped === 1) {
                 continue;
             }
-            if (tournamentsToScrape[i].owner == config.currentApiUser) {
+            if (tournamentsToScrape[i].owner == Config.currentApiUser) {
                 owned++;
                 var request = {
                     id: tournamentsToScrape[i].id,
@@ -235,20 +242,20 @@ module.exports = {
         }
     },
     ChangeActiveUser : function(user) {
-        if (!config.apiKeys[user]) {
+        if (!Config.apiKeys[user]) {
             out.Warning("User " + user + " does not exist");
         } else {
-            config.currentApiUser = user;
-            filemanager.WriteConfig(config);
+            Config.currentApiUser = user;
+            filemanager.WriteConfig(Config);
             out.Success("Switched to user: " + user);
         }
     },
     ListRegisteredApiUsers: function() {
         out.Log(chalk.blue("User") + chalk.white("  |  ") + chalk.yellow("API Key"))
-        for(var user in config.apiKeys) {
-            if (config.apiKeys.hasOwnProperty(user)) {
-                var output = user + " " + chalk.yellow(config.apiKeys[user]);
-                if (user === config.currentApiUser) {
+        for(var user in Config.apiKeys) {
+            if (Config.apiKeys.hasOwnProperty(user)) {
+                var output = user + " " + chalk.yellow(Config.apiKeys[user]);
+                if (user === Config.currentApiUser) {
                     output = output + " " + chalk.red("(active)")
                 }
                 out.Results(output);
@@ -256,6 +263,6 @@ module.exports = {
         }
     },
     DisplayActiveUser: function() {
-        out.Results(config.currentApiUser);
+        out.Results(Config.currentApiUser);
     }
 }
